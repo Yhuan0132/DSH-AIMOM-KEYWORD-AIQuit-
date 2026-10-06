@@ -1,0 +1,43 @@
+# dsh-keyword-gate 的 bundle patch。
+#
+# ⚠️ 装之前先读 README 的「上线顺序」：本插件会改变你和 agent 的对话契约，
+#    配错关键词会导致你的消息被丢弃（闸门也会挡掉「请把你自己关掉」这句话）。
+#    安全网有三层：① keywords 为空 → 闸门不生效；② bypass 词单次放行；
+#    ③ 改这个文件把 enabled 设 false。
+- insert:
+    - id: keyword-gate
+      name: dsh-keyword-gate
+      config:
+        enabled: true
+        # 必须含其中任一个词，才放行主模型。空数组 = 闸门不生效（安全设计）。
+        # 繁简都收：同一個詞，少收一種就等於多一次「訊息被丟掉」的機會。
+        keywords: ['媽媽', '妈妈']
+        # 备用通道：行首控制项，比关键词好打（忘了「媽媽」时的第二选择）。
+        # 语义是「token 出现在开头，后面紧跟空白或结束」——
+        #   通过：`1` ／ `1 帮我改文件`
+        #   拦下：`1.0 的版号` ／ `2026年1月` ／ `第1章`（否则等于没有闸门）
+        backup: ['1']
+        # 无条件放行的词（逃生门）。别删——否则忘了关键词就没法对话了。
+        bypass: ['!gate']
+        # true = 区分大小写
+        caseSensitive: false
+        # true = 只记录不拦截。**第一次上线保持 true**：先用它核对判准
+        # （确认系统注入/Goal 推进没被误判成人类输入），确认后再改成 false 真拦。
+        dryRun: true
+        # 拒绝时怎么说话：
+        #   'assistant'（默认）= 补一个完整步骤，把妈妈那句写成 assistant 回覆泡泡，
+        #                        看起来和正常回覆一模一样（客户端就是这么渲染的）
+        #   'notice'           = 退回用户侧 notice 卡片（不需要 turn/step，最保守）
+        # 泡泡写不进去时插件会自己降级成 notice，再写不进去才 fail-open 放行。
+        replyStyle: 'assistant'
+        # 被拦的那句话要不要原样补回会话？true（默认）= 补。
+        # 平台的语义是「丢弃」，不补的话它会永久消失（刷新后看不到自己说过什么）。
+        echoBlocked: true
+        # 拒绝语库：不给就用内置的五句「妈妈慈爱、委婉拒绝」。
+        # 每句都必须自己把关键词说出来（那是提示，不是嘲讽）。
+        # ⚠️ 想改请在 **profile 的 cordis.patch.yml** 里覆盖，别改这里——
+        #    这里的文件在 node_modules 里，重装/升级插件会把它冲掉：
+        #      - id: keyword-gate
+        #        config:
+        #          replies: ['你自己的第一句', '第二句']
+        # replies: []
